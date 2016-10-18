@@ -63,6 +63,11 @@ void log_ (char const * v) {
   std::cerr << v;
 }
 
+template <class T>
+void log_ (T * ptr) {
+  std::cerr << ptr;
+}
+
 void log_ (boost::system::error_code const & ec) {
   std::cerr << ec.message();
 }

@@ -7,24 +7,8 @@ from __future__ import unicode_literals
 
 from .socket import Socket
 
-USER_COMMAND_JOIN_USER = 0
-USER_COMMAND_EXIT = 1
-
-class UserClient(object):
-    
-    def __init__(self, socket):
-        self._socket = socket
-    
-    def joinUser(self, name):
-        self._socket.sendInt32(USER_COMMAND_JOIN_USER)
-        self._socket.sendString(name)
-        error = self._socket.recieveInt32()
-        return error
-    
-    def exit(self):
-        self._socket.sendInt32(USER_COMMAND_EXIT)
-        error = self._socket.recieveInt32()
-        return error
+from .user_client import UserClient
+from .room_client import RoomClient
 
 if __name__ == '__main__':
     import argparse
@@ -35,6 +19,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     socket = Socket(host=args.host, port=args.port)
     user_client = UserClient(socket)
-
+    room_client = RoomClient(socket)
+    
     from IPython import embed
     embed()

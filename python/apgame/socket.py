@@ -16,7 +16,7 @@ class Socket(object):
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._socket.connect((host, port))
-        self._buffer = ''
+        self._buffer = bytes()
     
     def __del__(self):
         self._socket.close()
@@ -29,7 +29,8 @@ class Socket(object):
     
     def sendString(self, val):
         self.sendUInt64(len(val))
-        self._send(struct.pack('{}s'.format(len(val)), val.encode('utf8')))
+        msg = val.encode('utf8')
+        self._send(struct.pack('{}s'.format(len(msg)), msg))
    
     def recieveBool(self):
         self._recieve(1)
@@ -67,4 +68,4 @@ class Socket(object):
             segment = self._socket.recv(4096)
             if len(segment) == 0:
                 raise RuntimeError('connection closed')
-            self._buffet += segment
+            self._buffer += segment

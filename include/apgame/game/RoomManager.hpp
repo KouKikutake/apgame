@@ -18,28 +18,36 @@ struct RoomManager {
   RoomManager () {
   }
 
-  Room * createRoom (std::string const & room_name, std::string const & game_name) {
-    LOG_DEBUG("createRoom");
+  Room * createRoom (User & user, std::string const & room_name, std::string const & game_name) {
+    LOG_DEBUG(room_name);
     std::lock_guard<std::mutex> lock(mtx_);
     auto it = name_room_map_.find(room_name);
-    if (it == name_room_map_.end()) {
+    if (it != name_room_map_.end()) {
       return nullptr;
     }
     std::unique_ptr<Room> room(new Room(buildGame(game_name)));
+    if (room == nullptr) {
+      return nullptr;
+    }
     Room * ptr = room.get();
     room->setName(room_name);
+    int error = ptr->joinRoom(user, game_name);
+    if (error != 0) {
+      return nullptr;
+    }
+
     name_room_map_.emplace(room_name, std::move(room));
     return ptr;
   }
 
-  Room * joinRoom (User * user, std::string const & room_name, std::string const & game_name) {
+  Room * joinRoom (User & user, std::string const & room_name, std::string const & game_name) {
     LOG_DEBUG("joinRoom");
     std::lock_guard<std::mutex> lock(mtx_);
     auto it = name_room_map_.find(room_name);
     if (it == name_room_map_.end()) {
       return nullptr;
     }
-    int error = it->second->addUser(user, game_name);
+    int error = it->second->joinRoom(user, game_name);
     if (error != 0) {
       return nullptr;
     }
@@ -56,6 +64,7 @@ struct RoomManager {
       room_name_list[i] = first->first;
     }
   }
+
 private:
   std::mutex mtx_;
   std::unordered_map<std::string, std::unique_ptr<Room>> name_room_map_;

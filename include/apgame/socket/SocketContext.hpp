@@ -28,6 +28,9 @@ struct SocketContext {
     if (!socket_.send(size, yield_)) {
       return false;
     }
+    if (size == 0) {
+      return true;
+    }
     if (!socket_.send(data[0], size, yield_)) {
       return false;
     }
@@ -48,47 +51,50 @@ struct SocketContext {
   }
 
   template <class T>
-  bool recieve (T & data) {
-    return socket_.recieve(data, yield_);
+  bool receive (T & data) {
+    return socket_.receive(data, yield_);
   }
 
-  bool recieve (std::string & data, std::size_t max) {
+  bool receive (std::string & data, std::size_t max) {
     std::size_t size;
-    if (!socket_.recieve(size, yield_)) {
+    if (!socket_.receive(size, yield_)) {
       return false;
     }
     if (size > max) {
       return false;
     }
     data.resize(size);
-    if (!socket_.recieve(data[0], size, yield_)) {
+    if (size == 0) {
+      return true;
+    }
+    if (!socket_.receive(data[0], size, yield_)) {
       return false;
     }
-    return true; 
+    return true;
   }
 
-  bool recieve (std::vector<char> & data, std::size_t max) {
+  bool receive (std::vector<char> & data, std::size_t max) {
     std::size_t size;
-    if (!socket_.recieve(size, yield_)) {
+    if (!socket_.receive(size, yield_)) {
       return false;
     }
     if (size > max) {
       return false;
     }
     data.resize(size);
-    if (!socket_.recieve(data[0], size, yield_)) {
+    if (!socket_.receive(data[0], size, yield_)) {
       return false;
     }
-    return true; 
+    return true;
   }
 
   template <class T>
-  bool recieve (T & data, std::size_t size) {
-    return socket_.recieve(data, size, yield_);
+  bool receive (T & data, std::size_t size) {
+    return socket_.receive(data, size, yield_);
   }
 
-  bool recieve (char * data, std::size_t size) {
-    return socket_.recieve(*data, size, yield_);
+  bool receive (char * data, std::size_t size) {
+    return socket_.receive(*data, size, yield_);
   }
 
   void close () {
@@ -97,7 +103,7 @@ struct SocketContext {
 
   Lock lock (std::mutex & mtx) {
     return Lock(io_service_, yield_, mtx);
-  }  
+  }
 
 protected:
   Socket & socket_;

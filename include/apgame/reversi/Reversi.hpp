@@ -15,6 +15,11 @@
 
 namespace apgame {
 
+struct Reversi;
+
+// implemented in ReversiServer.hpp
+void reversi_run_proxy (Reversi & reversi, GameContext & game_context);
+
 struct Reversi : public Game {
 
   Reversi ()
@@ -38,24 +43,20 @@ struct Reversi : public Game {
     return 2;
   }
 
-  bool join (User * user) override {
-    if (user_[0] == user || user_[2] == user) {
+  bool join (User & user) override {
+    std::lock_guard<std::mutex> lock(mtx_);
+    if (user_[0] == &user || user_[2] == &user) {
       return false;
     }
     if (!user_[0] && !user_[1]) {
       return false;
     }
+    LOG_DEBUG(user.getName(), " joined!");
     return true;
   }
 
-  void run (GameContext & game_context) override {
-
-    ReversiContext ctx(game_context.socket_context, game_context.user);
-
-    while (spin(ctx)) {}
-  }
-
   bool initialize () override {
+    std::lock_guard<std::mutex> lock(mtx_);
     if (!user_[0] || !user_[1]) {
       return false;
     }
@@ -75,177 +76,84 @@ struct Reversi : public Game {
     return true;
   }
 
-  bool spin (ReversiContext & ctx) {
-    LOG_DEBUG("spin");
-    ReversiCommand cmd;
-    if (!ctx.socket_context.recieve(cmd)) {
-      LOG_DEBUG("fail to recieve command");
-      return false;
-    }
-
-    switch (cmd) {
-    case REVERSI_COMMAND_GET_COLOR:
-      return handleGetColor(ctx);
-    case REVERSI_COMMAND_GET_STATUS:
-      return handleGetStatus(ctx);
-    case REVERSI_COMMAND_GET_BOARD:
-      return handleGetBoard(ctx);
-    case REVERSI_COMMAND_PUT_STONE:
-      return handlePutStone(ctx);
-    case REVERSI_COMMAND_GET_LAST_STONE:
-      return handleGetLastStone(ctx);
-    default:
-      LOG_DEBUG("unknown command ", cmd);
-      return false;
-    }
+  void run (GameContext & game_context) override {
+    reversi_run_proxy(*this, game_context);
   }
 
-/**
- * @details
- * send:
- * [ReversiStone color]
- */
-  bool handleGetColor (ReversiContext & ctx) {
-    LOG_DEBUG(ctx.user->getName(), ":handleGetColor");
-    if (!ctx.socket_context.send(ctx.color)) {
-      LOG_ERROR("failed to send color");
-      return false;
-    }
-    return true;
+  ReversiStone getColor (User & user) const noexcept {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return getColor_(user);
   }
 
-/**
- * @details
- * send:
- * [ReversiStatus status]
- */
-  bool handleGetStatus (ReversiContext & ctx) {
-    LOG_DEBUG(ctx.user->getName(), ":handleGetStatus");
-    auto lock = ctx.socket_context.lock(mtx_);
-    if (!ctx.socket_context.send(status_)) {
-      LOG_ERROR("failed to send status");
-      return false;
+  ReversiStone getColor_ (User & user) const noexcept {
+    if (user_[0] == &user) {
+      return color_[0];
     }
-    return true;
+    if (user_[1] == &user) {
+      return color_[1];
+    }
+    return REVERSI_STONE_EMPTY;
   }
 
-/**
- *  @details
- *  send:
- *  [ReversiStone stone] * 64
- */
-  bool handleGetBoard (ReversiContext & ctx) {
-    LOG_DEBUG(ctx.user->getName(), ":handleGetBoard");
-    auto lock = ctx.socket_context.lock(mtx_);
-    if (!ctx.socket_context.send(board_)) {
-      LOG_ERROR("failed to send board");
-      return false;
-    }
-    return true;
+  ReversiStatus getStatus () const noexcept {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return status_;
   }
 
-/**
- *  @details
- *  recieve:
- *  [int x][int y]
- *
- *  send:
- *  [int error]
- *
+  std::array<ReversiStone, 64> getBoard () const noexcept {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return board_;
+  }
+
+/*
+ *  error = -5: you are not joined
+ *  error = -4: your turn is passed
+ *  error = -3: invalid put
+ *  error = -2: invalid turn
+ *  error = -1: communication error
  *  error = 0: success
- *  error = 1: invalid turn
- *  error = 2: invalid put
- *  error = 3: your turn is passed
  */
-  bool handlePutStone (ReversiContext & ctx) {
-    LOG_DEBUG(ctx.user->getName(), ":handlePutStone");
-    auto lock = ctx.socket_context.lock(mtx_);
-    int x, y;
-
-    if (!ctx.socket_context.recieve(x)) {
-      LOG_ERROR("failed to recieve x");
-      return false;
+  int putStone (User & user, int x, int y) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    ReversiStone color = getColor_(user);
+    if (color == REVERSI_STONE_EMPTY) {
+      return -5;
+    } else if (color == REVERSI_STONE_BLACK && status_ != REVERSI_STATUS_BLACK_TURN) {
+      return -2;
+    } else if (color == REVERSI_STONE_WHITE && status_ != REVERSI_STATUS_WHITE_TURN) {
+      return -2;
     }
 
-    if (!ctx.socket_context.recieve(y)) {
-      LOG_ERROR("failed to recieve y");
-      return false;
-    }
-
-    if (ctx.color == REVERSI_STONE_BLACK && status_ != REVERSI_STATUS_BLACK_TURN) {
-      LOG_ERROR("failed, invalid turn");
-      if (!ctx.socket_context.send(1)) {
-        LOG_ERROR("failed to send error");
-        return false;
-      }
-      return true;
-    }
-    if (ctx.color == REVERSI_STONE_WHITE && status_ != REVERSI_STATUS_WHITE_TURN) {
-      if (!ctx.socket_context.send(1)) {
-        LOG_ERROR("failed to send error");
-        return false;
-      }
-      return true;
-    }
-
-    if (!checkPossibleChoice(ctx.color)) {
-      LOG_INFO("pass ", ctx.color == REVERSI_STONE_BLACK ? "BLACK" : "WHITE");
+    if (!checkPossibleChoice(color)) {
+      LOG_INFO("pass ", color == REVERSI_STONE_BLACK ? "BLACK" : "WHITE");
       if (last_passed_) {
         LOG_INFO("game finished");
         status_ = REVERSI_STATUS_AFTER_GAME;
-      } else if (ctx.color == REVERSI_STONE_BLACK) {
+      } else if (color == REVERSI_STONE_BLACK) {
         status_ = REVERSI_STATUS_WHITE_TURN;
-      } else { 
+      } else {
         status_ = REVERSI_STATUS_BLACK_TURN;
       }
       last_passed_ = true;
-      if (!ctx.socket_context.send(3)) {
-        LOG_ERROR("failed to send error");
-        return false;
-      }
-      return true;
+      return -4;
     }
     last_passed_ = false;
 
-    if (!checkPutStone(ctx.color, x, y, true)) {
+    if (!checkPutStone(color, x, y, true)) {
       LOG_ERROR("invalid put");
-      if (!ctx.socket_context.send(2)) {
-        LOG_ERROR("failed to send error");
-        return false;
-      }
-      return true;
-    }
-
-    if (!ctx.socket_context.send(0)) {
-      LOG_ERROR("failed to send error");
-      return false;
+      return -3;
     }
 
     x_ = x;
     y_ = y;
 
-    status_ = (ctx.color == REVERSI_STONE_BLACK) ? REVERSI_STATUS_WHITE_TURN : REVERSI_STATUS_BLACK_TURN;
-    return true;
+    status_ = (color == REVERSI_STONE_BLACK) ? REVERSI_STATUS_WHITE_TURN : REVERSI_STATUS_BLACK_TURN;
+    return 0;
   }
 
-/**
- *  @details
- *  send:
- *  [int x][int y]
- *
-  */
-  bool handleGetLastStone (ReversiContext & ctx) {
-    LOG_DEBUG(ctx.user->getName(), ":handleGetLastStone");
-    auto lock = ctx.socket_context.lock(mtx_);
-    if (!ctx.socket_context.send(x_)) {
-      LOG_ERROR("failed to send x");
-      return false;
-    }
-    if (!ctx.socket_context.send(y_)) {
-      LOG_ERROR("failed to send y");
-      return false;
-    }
-    return true;
+  std::pair<int, int> getLastStone () const noexcept {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return std::pair<int, int>(x_, y_);
   }
 
 private:
@@ -305,8 +213,6 @@ private:
     if (board_[x + 8 * y] != REVERSI_STONE_EMPTY) {
       return false;
     }
-
-    std::printf("%d, %d, %d\n", color, x, y);
 
     std::array<int, 16> K{
       1, 0,
@@ -376,3 +282,5 @@ private:
 };
 
 }
+
+#include <apgame/reversi/ReversiServer.hpp>

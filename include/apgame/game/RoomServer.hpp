@@ -38,8 +38,8 @@ private:
 
   bool spin () {
     RoomCommand cmd;
-    if (!socket_context_.recieve(cmd)) {
-      LOG_ERROR("failed to recieve command");
+    if (!socket_context_.receive(cmd)) {
+      LOG_ERROR("failed to receive command");
       return false;
     }
 
@@ -53,12 +53,13 @@ private:
   }
 
 /**
- *  recieve:
+ *  receive:
  *  [std::string room_name][std::string game_name]
  *
  *  send:
  *  [int error]
  *
+ *  error == -3: user is not specified
  *  error == -2: failed to join room
  *  error == -1: communication error
  *  error == 0: success
@@ -68,21 +69,31 @@ private:
     std::string game_name;
     int error;
 
-    if (!socket_context_.recieve(room_name)) {
-      LOG_ERROR("failed to recieve room name");
+    if (!socket_context_.receive(room_name, 128)) {
+      LOG_ERROR("failed to receive room name");
       return false;
     }
-    if (!socket_context_.recieve(game_name)) {
-      LOG_ERROR("failed to recieve game name");
+    if (!socket_context_.receive(game_name, 128)) {
+      LOG_ERROR("failed to receive game name");
       return false;
     }
 
+    if (!game_context_.user) {
+      LOG_ERROR("user is not specified. forget to pass UserServer?");
+      if (!socket_context_.send(-3)) {
+        LOG_ERROR("failed to send error");
+        return false;
+      }
+      return true;
+    }
+
     error = 0;
-    game_context_.room = room_manager_.createRoom(room_name, game_name);
+    game_context_.room = room_manager_.createRoom(*game_context_.user, room_name, game_name);
     if (game_context_.room == nullptr) {
       LOG_ERROR("failed to create room");
-      game_context_.room = room_manager_.joinRoom(game_context_.user, room_name, game_name);
+      game_context_.room = room_manager_.joinRoom(*game_context_.user, room_name, game_name);
     }
+
     if (game_context_.room == nullptr) {
       LOG_ERROR("failed to join room");
       error = -2;
@@ -96,7 +107,7 @@ private:
   }
 
 /**
- *  recieve:
+ *  receive:
  *
  *  send:
  *  [int error]

@@ -23,7 +23,7 @@ struct Game {
   virtual char const * gameName () const noexcept = 0;
   virtual std::size_t getMaxUser () const noexcept = 0;
 
-  virtual bool join (User * user) = 0;
+  virtual bool join (User & user) = 0;
   virtual bool initialize () = 0;
 
   virtual void run (GameContext & game_context) = 0;

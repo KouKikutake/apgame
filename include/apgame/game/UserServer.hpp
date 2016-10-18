@@ -34,8 +34,8 @@ private:
 
   bool spin () {
     UserCommand cmd;
-    if (!socket_context_.recieve(cmd)) {
-      LOG_ERROR("failed to recieve command");
+    if (!socket_context_.receive(cmd)) {
+      LOG_ERROR("failed to receive command");
       return false;
     }
 
@@ -49,7 +49,7 @@ private:
   }
 
 /**
- * recieve:
+ * receive:
  * [std::string name]
  *
  * send:
@@ -60,14 +60,15 @@ private:
  * error == 0: success
  */
   bool joinUser () {
+    LOG_DEBUG("joinUser");
     std::string name;
     int error;
 
-    if (!socket_context_.recieve(name)) {
-      LOG_ERROR("failed to recieve name");
+    if (!socket_context_.receive(name, 128)) {
+      LOG_ERROR("failed to receive name");
       return false;
     }
-
+    LOG_DEBUG("name = ", name, ", name.size = ", name.size());
     game_context_.user = user_manager_.createUser(name);
     if (game_context_.user == nullptr) {
       game_context_.user = user_manager_.findUserByName(name);
@@ -88,7 +89,7 @@ private:
   }
 
 /**
- *  recieve:
+ *  receive:
  *
  *  send:
  *  [int error]
@@ -97,6 +98,7 @@ private:
  *  error == 0: success
  */
   bool exit () {
+    LOG_DEBUG("exit");
     int error = 0;
     if (!socket_context_.send(error)) {
       LOG_ERROR("failed to send error");

@@ -60,14 +60,14 @@ struct Socket {
   }
 
   template <class T>
-  bool recieve (T & data, boost::asio::yield_context & yield) noexcept {
-    return recieve(data, sizeof(T), yield);
+  bool receive (T & data, boost::asio::yield_context & yield) noexcept {
+    return receive(data, sizeof(T), yield);
   }
 
   template <class T>
-  bool recieve (T & data, std::size_t size, boost::asio::yield_context & yield) noexcept {
+  bool receive (T & data, std::size_t size, boost::asio::yield_context & yield) noexcept {
     boost::system::error_code error;
-    LOG_DEBUG("recieve ", size, " bytes");
+    LOG_DEBUG("receive ", size, " bytes");
     boost::asio::async_read(
       native_socket_,
       boost::asio::buffer(&data, size),

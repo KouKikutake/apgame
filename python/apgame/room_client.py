@@ -7,22 +7,23 @@ from __future__ import unicode_literals
 
 from .socket import Socket
 
-USER_COMMAND_JOIN_USER = 0
-USER_COMMAND_EXIT = 1
+ROOM_COMMAND_JOIN_ROOM = 0
+ROOM_COMMAND_EXIT = ROOM_COMMAND_JOIN_ROOM + 1
 
-class UserClient(object):
+class RoomClient(object):
     
     def __init__(self, socket):
         self._socket = socket
     
-    def joinUser(self, name):
-        self._socket.sendInt32(USER_COMMAND_JOIN_USER)
-        self._socket.sendString(name)
+    def joinRoom(self, room_name, game_name):
+        self._socket.sendInt32(ROOM_COMMAND_JOIN_ROOM)
+        self._socket.sendString(room_name)
+        self._socket.sendString(game_name)
         error = self._socket.recieveInt32()
         return error
     
     def exit(self):
-        self._socket.sendInt32(USER_COMMAND_EXIT)
+        self._socket.sendInt32(ROOM_COMMAND_EXIT)
         error = self._socket.recieveInt32()
         return error
 
@@ -34,7 +35,7 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     socket = Socket(host=args.host, port=args.port)
-    user_client = UserClient(socket)
-
+    room_client = RoomClient(socket)
+    
     from IPython import embed
     embed()

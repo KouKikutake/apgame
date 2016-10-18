@@ -13,6 +13,11 @@ struct Room {
   Room (std::unique_ptr<Game> game)
   : game_(std::move(game)) {
     max_user_ = 32;
+    num_round_ = 1024;
+  }
+
+  Game * getGame () {
+    return game_.get();
   }
 
   std::string const & getName () const noexcept {
@@ -20,6 +25,7 @@ struct Room {
   }
 
   void setName (std::string const & name) {
+    std::lock_guard<std::mutex> lock(mtx_);
     name_ = name;
   }
 
@@ -28,48 +34,39 @@ struct Room {
   }
 
   void setGameName (std::string const & name) {
+    std::lock_guard<std::mutex> lock(mtx_);
     game_name_ = name;
   }
 
-  std::size_t getMaxUser () const noexcept {
-    return max_user_;
+  int getNumRound () const noexcept {
+    return num_round_;
   }
 
-  void setMaxUser (std::size_t max_user) {
-    max_user_ = max_user;
-  }
-
-/**
- *  @return
- *  error == 0: success
- *  error == 1: the room is full
- *  error == 2: the user already exists
- *  error == 3: game name is mismatched
- */
-  int addUser (User * user, std::string const & game_name) {
+  void setNumRound (int num_round) {
     std::lock_guard<std::mutex> lock(mtx_);
-    if (game_name_ != game_name) {
-      return 3;
+    num_round_ = num_round;
+  }
+
+  bool joinRoom (User & user, std::string const & game_name) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return game_->join(user);
+  }
+
+  void run (GameContext & game_context) {
+    int num_round  = num_round_;
+    for (int i = 0; i < num_round; ++i) {
+      game_->run(game_context);
     }
-    if (user_set_.size() >= max_user_) {
-      return 1;
-    }
-    auto it = user_set_.find(user);
-    if (it != user_set_.end()) {
-      return 2;
-    }
-    user_set_.emplace(user);
-    return 0;
   }
 
 private:
-  std::mutex mtx_;
+  mutable std::mutex mtx_;
   std::string name_;
   std::string game_name_;
   std::size_t max_user_;
   std::size_t max_game_;
+  int num_round_;
   std::unique_ptr<Game> game_;
-  std::unordered_set<User *> user_set_;
 };
 
 }
