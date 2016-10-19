@@ -12,7 +12,7 @@ GET_BOARD
   BWBW... x 64
 
 GET_LAST_STONE
-  BLACK x y
+  TRUE x y
 
 PUT_STONE x y
   TRUE

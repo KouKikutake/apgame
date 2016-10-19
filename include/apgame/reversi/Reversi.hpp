@@ -75,7 +75,7 @@ struct Reversi : public Game {
     initBoard();
     last_passed_ = false;
     status_ = REVERSI_STATUS_BLACK_TURN;
-
+    status_obtained_ = false;
     return true;
   }
 
@@ -108,9 +108,14 @@ struct Reversi : public Game {
     return REVERSI_STONE_EMPTY;
   }
 
-  ReversiStatus getStatus () const noexcept {
+  ReversiStatus getStatus (User & user) noexcept {
     std::lock_guard<std::mutex> lock(mtx_);
-    return status_;
+    ReversiStatus status = status_;
+    if (!status_obtained_) {
+      checkPass(user);
+    }
+    status_obtained_ = true;
+    return status;
   }
 
   std::array<ReversiStone, 64> getBoard () const noexcept {
@@ -118,9 +123,31 @@ struct Reversi : public Game {
     return board_;
   }
 
+  bool checkPass (User & user) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    ReversiStone color = getColor_(user);
+    if (!checkPossibleChoice(color)) {
+      LOG_INFO("pass ", color == REVERSI_STONE_BLACK ? "BLACK" : "WHITE");
+      if (last_passed_) {
+        LOG_INFO("game finished");
+        status_ = REVERSI_STATUS_AFTER_GAME;
+        status_obtained_ = false;
+      } else if (color == REVERSI_STONE_BLACK) {
+        status_ = REVERSI_STATUS_WHITE_TURN;
+        status_obtained_ = false;
+      } else {
+        status_ = REVERSI_STATUS_BLACK_TURN;
+        status_obtained_ = false;
+      }
+      last_passed_ = true;
+      return true;
+    }
+    last_passed_ = false;
+    return false;
+  }
+
 /*
  *  error = -5: you are not joined
- *  error = -4: your turn is passed
  *  error = -3: invalid put
  *  error = -2: invalid turn
  *  error = -1: communication error
@@ -137,21 +164,6 @@ struct Reversi : public Game {
       return -2;
     }
 
-    if (!checkPossibleChoice(color)) {
-      LOG_INFO("pass ", color == REVERSI_STONE_BLACK ? "BLACK" : "WHITE");
-      if (last_passed_) {
-        LOG_INFO("game finished");
-        status_ = REVERSI_STATUS_AFTER_GAME;
-      } else if (color == REVERSI_STONE_BLACK) {
-        status_ = REVERSI_STATUS_WHITE_TURN;
-      } else {
-        status_ = REVERSI_STATUS_BLACK_TURN;
-      }
-      last_passed_ = true;
-      return -4;
-    }
-    last_passed_ = false;
-
     if (!checkPutStone(color, x, y, true)) {
       LOG_ERROR("invalid put");
       return -3;
@@ -161,6 +173,7 @@ struct Reversi : public Game {
     y_ = y;
 
     status_ = (color == REVERSI_STONE_BLACK) ? REVERSI_STATUS_WHITE_TURN : REVERSI_STATUS_BLACK_TURN;
+    status_obtained_ = false;
     return 0;
   }
 
@@ -178,6 +191,7 @@ private:
   std::array<ReversiStone, 2> color_;
   std::array<ReversiStone, 64> board_;
   ReversiStatus status_;
+  bool status_obtained_;
   bool last_passed_;
 
   int x_;

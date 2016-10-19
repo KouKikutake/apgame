@@ -82,7 +82,7 @@ private:
  */
   bool getStatus () {
     LOG_DEBUG(user_.getName(), " : getStatus");
-    if (!socket_context_.send(reversi_.getStatus())) {
+    if (!socket_context_.send(reversi_.getStatus(user_))) {
       LOG_ERROR("failed to send status");
       return false;
     }

@@ -1,3 +1,4 @@
+#!/bin/env python
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import division
@@ -5,5 +6,9 @@ from __future__ import generators
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from IPython import embed
-embed()
+import sys
+
+while True:
+    print('GET_STATUS')
+    reponse = sys.stdin.readline()
+    sys.stderr.write(response)
