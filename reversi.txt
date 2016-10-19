@@ -18,3 +18,30 @@ PUT_STONE x y
   TRUE
   FALSE
   PASSED
+
+
+example
+
+int main () {
+
+  std::string mycolor;
+  std::cout << "GET_COLOR" << std::endl;
+  std::cin >> mycolor;
+
+  while (true) {
+    std::cout << "GET_LINE" << std::endl;
+    std::string;
+    std::cin >> status;
+    if string == mycolor;
+    iroirokeisan....
+
+    std::cout << "PUT_STONE " << x << " " << y << std::endl;
+    std::cin >> result;
+
+    if (result == "TRUE") {
+      continue
+    }
+  }
+
+}
+    
