@@ -17,10 +17,46 @@ def spin (reversi_client, commands, prog):
     if commands[0] == 'GET_STATUS':
         status = reversi_client.getStatus()
         if status == 0:
-            prog.stdin.write('BEFORE_GAME')
+            prog.stdin.write('BEFORE_GAME\n')
+            return
         elif status == 1:
-            prog.stdin.write('BEFORE_GAME')
+            prog.stdin.write('BLACK_TURN\n')
+            return
+        elif status == 2:
+            prog.stdin.write('WHITE_TURN\n')
+            return
+        elif status == 3:
+            prog.stdin.write('AFTER_GAME\n')
+            return
     elif commands[0] == 'GET_COLOR':
+        color = reversi_client.getColor()
+        if color == 1:
+            prog.stdin.write('BLACK\n')
+            return
+        elif color == -1:
+            prog.stdin.write('WHITE\n')
+            return
+    elif commands[0] == 'GET_BOARD':
+        board = reversi_client.getBoard()
+        for stone in board:
+            if stone == '0':
+                ch = '.'
+            elif stone == '1':
+                ch = 'B'
+            elif stone == '-1':
+                ch = 'W'
+            prog.stdin.write(ch)
+        prog.stdin.write('\n')
+        return
+    elif commands[0] == 'PUT_STONE':
+        status = reversi_client.putStone(x, y)
+        if status == 0:
+            prog.stdin.write('TRUE\n')
+            return
+        else:
+            prog.stdin.write('FALSE\n')
+            return
+    print('unknown command {}'.format(commands))
 
 if __name__ == '__main__':
     import argparse
@@ -29,7 +65,7 @@ if __name__ == '__main__':
     parser.add_argument('--port', dest='port', required=True, type=int)
     parser.add_argument('--room', dest='room', required=True, type=str)
     parser.add_argument('--name', dest='name', required=True, type=str)
-    parser.add_argument('path', dest='path', required=True, type=str)
+    parser.add_argument('path', type=str)
     
     args = parser.parse_args()
     socket = Socket(host=args.host, port=args.port)
