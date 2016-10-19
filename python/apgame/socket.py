@@ -32,20 +32,24 @@ class Socket(object):
         msg = val.encode('utf8')
         self._send(struct.pack('{}s'.format(len(msg)), msg))
    
-    def recieveBool(self):
-        self._recieve(1)
+    def receiveBool(self):
+        self._receive(1)
         return struct.unpack('?', self._consume(1))
-   
-    def recieveInt32(self):
-        self._recieve(4)
+    
+    def receiveInt8(self):
+        self._receive(1)
+        return struct.unpack('<b', self._consume(1))
+    
+    def receiveInt32(self):
+        self._receive(4)
         return struct.unpack('<i', self._consume(4))
     
-    def recieveUInt64(self):
-        self._recieve(8)
+    def receiveUInt64(self):
+        self._receive(8)
         return struct.unpack('<Q', self._consume(8))
     
-    def recieveString(self):
-        size = self.recieveUInt64()
+    def receiveString(self):
+        size = self.receiveUInt64()
         return self.unpack('{}s'.format(size), self._consume(size))
     
     def _consume(self, length):
@@ -62,8 +66,8 @@ class Socket(object):
                 raise RuntimeError('connection closed')
             total += size
     
-    def _recieve(self, recv_size):
-        print('recieve{} bytes'.format(recv_size))
+    def _receive(self, recv_size):
+        print('receive{} bytes'.format(recv_size))
         while len(self._buffer) < recv_size:
             segment = self._socket.recv(4096)
             if len(segment) == 0:

@@ -162,6 +162,7 @@ private:
 
 void reversi_run_proxy (Reversi & reversi, GameContext & game_context) {
   ReversiServer reversi_server(reversi, game_context.socket_context, *game_context.user);
+  reversi_server();
 }
 
 }

@@ -45,19 +45,22 @@ struct Reversi : public Game {
 
   bool join (User & user) override {
     std::lock_guard<std::mutex> lock(mtx_);
-    if (user_[0] == &user || user_[2] == &user) {
-      return false;
+    if (user_[0] == &user || user_[0] == nullptr) {
+      LOG_DEBUG(user.getName(), " joined!");
+      user_[0] = &user;
+      return true;
     }
-    if (!user_[0] && !user_[1]) {
-      return false;
+    if (user_[1] == &user || user_[1] == nullptr) {
+      LOG_DEBUG(user.getName(), " joined!");
+      user_[1] = &user;
+      return true;
     }
-    LOG_DEBUG(user.getName(), " joined!");
-    return true;
+    return false;
   }
 
   bool initialize () override {
     std::lock_guard<std::mutex> lock(mtx_);
-    if (!user_[0] || !user_[1]) {
+    if (!ready_()) {
       return false;
     }
     int i = std::uniform_int_distribution<int>(0, 1)(random_engine_);
@@ -73,6 +76,16 @@ struct Reversi : public Game {
     last_passed_ = false;
     status_ = REVERSI_STATUS_BLACK_TURN;
 
+    return true;
+  }
+
+  bool ready_ () {
+    if (status_ != REVERSI_STATUS_BEFORE_GAME) {
+      return false;
+    }
+    if (!user_[0] || !user_[1]) {
+      return false;
+    }
     return true;
   }
 

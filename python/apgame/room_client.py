@@ -19,12 +19,12 @@ class RoomClient(object):
         self._socket.sendInt32(ROOM_COMMAND_JOIN_ROOM)
         self._socket.sendString(room_name)
         self._socket.sendString(game_name)
-        error = self._socket.recieveInt32()
+        error = self._socket.receiveInt32()
         return error
     
     def exit(self):
         self._socket.sendInt32(ROOM_COMMAND_EXIT)
-        error = self._socket.recieveInt32()
+        error = self._socket.receiveInt32()
         return error
 
 if __name__ == '__main__':

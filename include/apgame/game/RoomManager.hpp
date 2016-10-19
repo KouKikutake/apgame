@@ -21,18 +21,20 @@ struct RoomManager {
   Room * createRoom (User & user, std::string const & room_name, std::string const & game_name) {
     LOG_DEBUG(room_name);
     std::lock_guard<std::mutex> lock(mtx_);
+    LOG_INFO("create room, room_name = ", room_name, "game_name = ", game_name);
     auto it = name_room_map_.find(room_name);
     if (it != name_room_map_.end()) {
       return nullptr;
     }
     std::unique_ptr<Room> room(new Room(buildGame(game_name)));
     if (room == nullptr) {
+      LOG_ERROR("failed to create room");
       return nullptr;
     }
     Room * ptr = room.get();
     room->setName(room_name);
-    int error = ptr->joinRoom(user, game_name);
-    if (error != 0) {
+    if (!ptr->joinRoom(user, game_name)) {
+      LOG_ERROR("failed to create room");
       return nullptr;
     }
 
@@ -47,8 +49,7 @@ struct RoomManager {
     if (it == name_room_map_.end()) {
       return nullptr;
     }
-    int error = it->second->joinRoom(user, game_name);
-    if (error != 0) {
+    if (!it->second->joinRoom(user, game_name)) {
       return nullptr;
     }
     return it->second.get();

@@ -18,12 +18,12 @@ class UserClient(object):
     def joinUser(self, name):
         self._socket.sendInt32(USER_COMMAND_JOIN_USER)
         self._socket.sendString(name)
-        error = self._socket.recieveInt32()
+        error = self._socket.receiveInt32()
         return error
     
     def exit(self):
         self._socket.sendInt32(USER_COMMAND_EXIT)
-        error = self._socket.recieveInt32()
+        error = self._socket.receiveInt32()
         return error
 
 if __name__ == '__main__':

@@ -33,7 +33,10 @@ struct EntryPoint {
 
     LOG_INFO("start round");
     for (int i = 0; i < num_round; ++i) {
-      LOG_INFO("round ", i);
+      if (game_context.game->initialize()) {
+        LOG_INFO("round ", i);
+        LOG_INFO("initialized!");
+      }
       game_context.game->run(game_context);
     }
 
