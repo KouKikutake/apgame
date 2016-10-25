@@ -74,8 +74,9 @@ struct Reversi : public Game {
 
     initBoard();
     last_passed_ = false;
+    x_ = -1;
+    y_ = -1;
     status_ = REVERSI_STATUS_BLACK_TURN;
-    status_obtained_ = false;
     return true;
   }
 
@@ -108,45 +109,26 @@ struct Reversi : public Game {
     return REVERSI_STONE_EMPTY;
   }
 
-  ReversiStatus getStatus (User & user) noexcept {
+  ReversiStatus getStatus () {
     std::lock_guard<std::mutex> lock(mtx_);
-    ReversiStatus status = status_;
-    if (!status_obtained_) {
-      checkPass(user);
-    }
-    status_obtained_ = true;
-    return status;
+    return getStatus_();
   }
 
-  std::array<ReversiStone, 64> getBoard () const noexcept {
+  ReversiStatus getStatus_ () {
+    return status_;
+  }
+
+  std::array<ReversiStone, 64> getBoard () const {
     std::lock_guard<std::mutex> lock(mtx_);
+    return getBoard_();
+  }
+
+  std::array<ReversiStone, 64> getBoard_ () const {
     return board_;
   }
 
-  bool checkPass (User & user) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    ReversiStone color = getColor_(user);
-    if (!checkPossibleChoice(color)) {
-      LOG_INFO("pass ", color == REVERSI_STONE_BLACK ? "BLACK" : "WHITE");
-      if (last_passed_) {
-        LOG_INFO("game finished");
-        status_ = REVERSI_STATUS_AFTER_GAME;
-        status_obtained_ = false;
-      } else if (color == REVERSI_STONE_BLACK) {
-        status_ = REVERSI_STATUS_WHITE_TURN;
-        status_obtained_ = false;
-      } else {
-        status_ = REVERSI_STATUS_BLACK_TURN;
-        status_obtained_ = false;
-      }
-      last_passed_ = true;
-      return true;
-    }
-    last_passed_ = false;
-    return false;
-  }
-
-/*
+/**
+ *  @return
  *  error = -5: you are not joined
  *  error = -3: invalid put
  *  error = -2: invalid turn
@@ -164,7 +146,7 @@ struct Reversi : public Game {
       return -2;
     }
 
-    if (!checkPutStone(color, x, y, true)) {
+    if (!checkPutStone(color, x, y, false)) {
       LOG_ERROR("invalid put");
       return -3;
     }
@@ -173,14 +155,65 @@ struct Reversi : public Game {
     y_ = y;
 
     status_ = (color == REVERSI_STONE_BLACK) ? REVERSI_STATUS_WHITE_TURN : REVERSI_STATUS_BLACK_TURN;
-    status_obtained_ = false;
     return 0;
+  }
+
+  bool finishTurn (User & user) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return finishTurn_(user);
+  }
+  bool finishTurn_ (User & user) {
+    ReversiStatus status = getStatus_();
+    ReversiStone color = getColor_(user);
+    if (color == REVERSI_STONE_EMPTY) {
+      return false;
+    } else if (color == REVERSI_STONE_BLACK && status != REVERSI_STATUS_BLACK_TURN) {
+      return false;
+    } else if (color == REVERSI_STONE_WHITE && status != REVERSI_STATUS_WHITE_TURN) {
+      return false;
+    }
+    if (checkPass_(user)) {
+      checkPutStone(color, x_, y_, true);
+      last_passed_ = false;
+    } else {
+      last_passed_ = true;
+    }
+
+    x_ = -1;
+    y_ = -1;
+
+    if (status_ == REVERSI_STATUS_BLACK_TURN) {
+      status_ = REVERSI_STATUS_WHITE_TURN;
+    } else if (status_ == REVERSI_STATUS_WHITE_TURN) {
+      status_ = REVERSI_STATUS_BLACK_TURN;
+    }
   }
 
   std::pair<int, int> getLastStone () const noexcept {
     std::lock_guard<std::mutex> lock(mtx_);
     return std::pair<int, int>(x_, y_);
   }
+
+  bool checkPass (User & user) {
+    std::lock_guard<std::mutex> lock(mtx_);
+    return checkPass_(user);
+  }
+
+  bool checkPass_ (User & user) {
+    ReversiStatus status = getStatus_();
+    ReversiStone color = getColor_(user);
+    if (color == REVERSI_STONE_EMPTY) {
+      return false;
+    }
+    if (color == REVERSI_STONE_BLACK && status != REVERSI_STATUS_BLACK_TURN) {
+      return false;
+    }
+    if (color == REVERSI_STONE_WHITE && status != REVERSI_STATUS_WHITE_TURN) {
+      return false;
+    }
+    return !checkPossibleChoice(color);
+  }
+
 
 private:
 
@@ -191,7 +224,6 @@ private:
   std::array<ReversiStone, 2> color_;
   std::array<ReversiStone, 64> board_;
   ReversiStatus status_;
-  bool status_obtained_;
   bool last_passed_;
 
   int x_;
@@ -229,15 +261,11 @@ private:
 
     if (color != REVERSI_STONE_BLACK && color != REVERSI_STONE_WHITE) {
       return false;
-    }
-    if (!(0 <= x && x < 8)) {
+    } else if (!(0 <= x && x < 8)) {
       return false;
-    }
-    if (!(0 <= y && y < 8)) {
+    } else if (!(0 <= y && y < 8)) {
       return false;
-    }
-
-    if (board_[x + 8 * y] != REVERSI_STONE_EMPTY) {
+    } else if (board_[x + 8 * y] != REVERSI_STONE_EMPTY) {
       return false;
     }
 

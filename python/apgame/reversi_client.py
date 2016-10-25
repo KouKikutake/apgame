@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import generators
 from __future__ import print_function
-from __future__ import unicode_literals
 
 from .socket import Socket
 
@@ -12,6 +11,7 @@ REVERSI_COMMAND_GET_STATUS = 1
 REVERSI_COMMAND_GET_BOARD = 2
 REVERSI_COMMAND_PUT_STONE = 3
 REVERSI_COMMAND_GET_LAST_STONE = 4
+REVERSI_COMMAND_FINISH_TURN = 5
 
 REVERSI_STONE_BLACK = 1
 REVERSI_STONE_EMPTY = 0
@@ -21,8 +21,14 @@ class ReversiClient(object):
     
     def __init__(self, socket):
         self._socket = socket
-    
+
     def getColor(self):
+        """
+            @return
+                1: BLACK
+                -1: WHITE
+                0: EMPTY, game is not started
+        """
         self._socket.sendInt32(REVERSI_COMMAND_GET_COLOR)
         color = self._socket.receiveInt8()
         return color
@@ -42,7 +48,13 @@ class ReversiClient(object):
         self._socket.sendInt32(x)
         self._socket.sendInt32(y)
         error = self._socket.receiveInt32(error)
-    
+        return error
+
+    def finishTurn(self):
+        self._socket.sendInt32(REVERSI_COMMAND_FINISH_TURN)
+        error = self._socket.receiveInt32(error)
+        return error
+
     def exit(self):
         self._socket.sendInt32(USER_COMMAND_EXIT)
         error = self._socket.receiveInt32()

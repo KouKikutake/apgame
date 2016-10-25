@@ -10,5 +10,6 @@ import sys
 
 while True:
     print('GET_STATUS')
-    reponse = sys.stdin.readline()
+    sys.stdout.flush()
+    response = sys.stdin.readline()
     sys.stderr.write(response)

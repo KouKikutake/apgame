@@ -3,7 +3,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import generators
 from __future__ import print_function
-from __future__ import unicode_literals
 
 from .socket import Socket
 
@@ -11,54 +10,57 @@ from .user_client import UserClient
 from .room_client import RoomClient
 from .reversi_client import ReversiClient
 
+import os.path
 import subprocess
+import sys
+import time
 
 def spin (reversi_client, commands, prog):
     print(commands)
     if commands[0] == 'GET_STATUS':
         status = reversi_client.getStatus()
         if status == 0:
-            prog.stdin.write(b'BEFORE_GAME\n')
+            prog.stdin.write('BEFORE_GAME\n')
             return
         elif status == 1:
-            prog.stdin.write(b'BLACK_TURN\n')
+            prog.stdin.write('BLACK_TURN\n')
             return
         elif status == 2:
-            prog.stdin.write(b'WHITE_TURN\n')
+            prog.stdin.write('WHITE_TURN\n')
             return
         elif status == 3:
-            prog.stdin.write(b'AFTER_GAME\n')
+            prog.stdin.write('AFTER_GAME\n')
             return
     elif commands[0] == 'GET_COLOR':
         color = reversi_client.getColor()
         if color == 1:
-            prog.stdin.write(b'BLACK\n')
+            prog.stdin.write('BLACK\n')
             return
         elif color == -1:
-            prog.stdin.write(b'WHITE\n')
+            prog.stdin.write('WHITE\n')
             return
         else:
-            prog.stdin.write(b'EMPTY\n')
+            prog.stdin.write('EMPTY\n')
             return
     elif commands[0] == 'GET_BOARD':
         board = reversi_client.getBoard()
         for stone in board:
             if stone == '0':
-                ch = b'.'
+                ch = '.'
             elif stone == '1':
-                ch = b'B'
+                ch = 'B'
             elif stone == '-1':
-                ch = b'W'
+                ch = 'W'
             prog.stdin.write(ch)
-        prog.stdin.write(b'\n')
+        prog.stdin.write('\n')
         return
     elif commands[0] == 'PUT_STONE':
         status = reversi_client.putStone(x, y)
         if status == 0:
-            prog.stdin.write(b'TRUE\n')
+            prog.stdin.write('TRUE\n')
             return
         else:
-            prog.stdin.write(b'FALSE\n')
+            prog.stdin.write('FALSE\n')
             return
     print('unknown command {}'.format(commands))
 
@@ -69,9 +71,10 @@ if __name__ == '__main__':
     parser.add_argument('--port', dest='port', required=True, type=int)
     parser.add_argument('--room', dest='room', required=True, type=str)
     parser.add_argument('--name', dest='name', required=True, type=str)
-    parser.add_argument('path', type=str)
+    parser.add_argument('args', nargs='+', type=str)
     
     args = parser.parse_args()
+    proc = subprocess.Popen(args.args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=sys.stderr)
     socket = Socket(host=args.host, port=args.port)
     user_client = UserClient(socket)
     user_client.joinUser(args.name)
@@ -81,8 +84,11 @@ if __name__ == '__main__':
     room_client.exit()
     reversi_client = ReversiClient(socket)
 
-    proc = subprocess.Popen([args.path], stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+    buf = ''
     while True:
-        line = str(proc.stdout.readline())
-        commands = line.split(' ')
+        request = proc.stdout.readline()
+        if len(request) == 0:
+            time.sleep(0.1)
+            continue
+        commands = request[:-1].split(' ')
         spin(reversi_client, commands, proc)

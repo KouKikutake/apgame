@@ -82,7 +82,7 @@ private:
  */
   bool getStatus () {
     LOG_DEBUG(user_.getName(), " : getStatus");
-    if (!socket_context_.send(reversi_.getStatus(user_))) {
+    if (!socket_context_.send(reversi_.getStatus())) {
       LOG_ERROR("failed to send status");
       return false;
     }
@@ -112,10 +112,11 @@ private:
  *  send:
  *  [int error]
  *
+  *  error = -5: you are not joined
+ *  error = -3: invalid put
+ *  error = -2: invalid turn
+ *  error = -1: communication error
  *  error = 0: success
- *  error = 1: invalid turn
- *  error = 2: invalid put
- *  error = 3: your turn is passed
  */
   bool putStone () {
     LOG_DEBUG(user_.getName(), ": putStone");
@@ -142,7 +143,7 @@ private:
  *  send:
  *  [int x][int y]
  *
-  */
+*/
   bool getLastStone () {
     LOG_DEBUG(user_.getName(), " : getLastStone");
     std::pair<int, int> p = reversi_.getLastStone();
@@ -157,6 +158,39 @@ private:
     return true;
   }
 
+/**
+ *  receive:
+ *
+ *  send:
+ *  [int error]
+ *
+*/
+  bool finishTurn () {
+    LOG_DEBUG(user_.getName(), " : finishTurn");
+    int error = reversi_.finishTurn(user_);
+    if (!socket_context_.send(error)) {
+      LOG_ERROR("failed to send error");
+      return false;
+    }
+    return true;
+  }
+
+/**
+ *  receive:
+ *
+ *  send:
+ *  [bool pass]
+ *
+*/
+  bool checkPass() {
+    LOG_DEBUG(user_.getName(), " : checkPass");
+    bool pass = reversi_.checkPass(user_);
+    if (!socket_context_.send(pass)) {
+      LOG_ERROR("failed to send pass");
+      return false;
+    }
+    return true;
+  }
 
 };
 
