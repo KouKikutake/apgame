@@ -82,7 +82,7 @@ private:
  */
   bool getStatus () {
     LOG_DEBUG(user_.getName(), " : getStatus");
-    if (!socket_context_.send(reversi_.getStatus())) {
+    if (!socket_context_.send(reversi_.getStatus(user_))) {
       LOG_ERROR("failed to send status");
       return false;
     }
@@ -153,40 +153,6 @@ private:
     }
     if (!socket_context_.send(p.second)) {
       LOG_ERROR("failed to send y");
-      return false;
-    }
-    return true;
-  }
-
-/**
- *  receive:
- *
- *  send:
- *  [int error]
- *
-*/
-  bool finishTurn () {
-    LOG_DEBUG(user_.getName(), " : finishTurn");
-    int error = reversi_.finishTurn(user_);
-    if (!socket_context_.send(error)) {
-      LOG_ERROR("failed to send error");
-      return false;
-    }
-    return true;
-  }
-
-/**
- *  receive:
- *
- *  send:
- *  [bool pass]
- *
-*/
-  bool checkPass() {
-    LOG_DEBUG(user_.getName(), " : checkPass");
-    bool pass = reversi_.checkPass(user_);
-    if (!socket_context_.send(pass)) {
-      LOG_ERROR("failed to send pass");
       return false;
     }
     return true;

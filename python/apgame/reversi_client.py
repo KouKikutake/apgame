@@ -47,14 +47,9 @@ class ReversiClient(object):
         self._socket.sendInt32(REVERSI_COMMAND_PUT_STONE)
         self._socket.sendInt32(x)
         self._socket.sendInt32(y)
-        error = self._socket.receiveInt32(error)
+        error = self._socket.receiveInt32()
         return error
-
-    def finishTurn(self):
-        self._socket.sendInt32(REVERSI_COMMAND_FINISH_TURN)
-        error = self._socket.receiveInt32(error)
-        return error
-
+    
     def exit(self):
         self._socket.sendInt32(USER_COMMAND_EXIT)
         error = self._socket.receiveInt32()

@@ -29,6 +29,8 @@ struct Reversi : public Game {
     std::random_device device;
     random_engine_.seed(device());
     status_ = REVERSI_STATUS_BEFORE_GAME;
+    firstWin_= 0;
+    secondWin_ = 0;
   }
 
   GameID gameID () const noexcept override {
@@ -59,24 +61,6 @@ struct Reversi : public Game {
   }
 
   bool initialize () override {
-    std::lock_guard<std::mutex> lock(mtx_);
-    if (!ready_()) {
-      return false;
-    }
-    int i = std::uniform_int_distribution<int>(0, 1)(random_engine_);
-    if (i == 0) {
-      color_[0] = REVERSI_STONE_BLACK;
-      color_[1] = REVERSI_STONE_WHITE;
-    } else {
-      color_[0] = REVERSI_STONE_WHITE;
-      color_[1] = REVERSI_STONE_BLACK;
-    }
-
-    initBoard();
-    last_passed_ = false;
-    x_ = -1;
-    y_ = -1;
-    status_ = REVERSI_STATUS_BLACK_TURN;
     return true;
   }
 
@@ -109,13 +93,79 @@ struct Reversi : public Game {
     return REVERSI_STONE_EMPTY;
   }
 
-  ReversiStatus getStatus () {
+  ReversiStatus getStatus (User & user) {
     std::lock_guard<std::mutex> lock(mtx_);
-    return getStatus_();
+    return getStatus_(user);
   }
 
-  ReversiStatus getStatus_ () {
-    return status_;
+  ReversiStatus getStatus_ (User & user) {
+    auto status = status_;
+    if (status_ == REVERSI_STATUS_BLACK_TURN && getColor_(user) == REVERSI_STONE_BLACK) {
+      if (checkPossibleChoice(REVERSI_STONE_BLACK)) {
+        last_passed_ = false;
+      } else {
+        if (last_passed_) {
+          status_ = REVERSI_STATUS_AFTER_GAME;
+        } else {
+          last_passed_ = true;
+          status_ = REVERSI_STATUS_WHITE_TURN;
+        }
+      }
+    } else if (status_ == REVERSI_STATUS_WHITE_TURN && getColor_(user) == REVERSI_STONE_WHITE) {
+      if (checkPossibleChoice(REVERSI_STONE_WHITE)) {
+        last_passed_ = false;
+      } else {
+        if (last_passed_) {
+          status_ = REVERSI_STATUS_AFTER_GAME;
+        } else {
+          last_passed_ = true;
+          status_ = REVERSI_STATUS_BLACK_TURN;
+        }
+      }
+    } else if (status_ == REVERSI_STATUS_BEFORE_GAME) {
+      if (ready_()) {
+        int i = std::uniform_int_distribution<int>(0, 1)(random_engine_);
+        if (i == 0) {
+          color_[0] = REVERSI_STONE_BLACK;
+          color_[1] = REVERSI_STONE_WHITE;
+        } else {
+          color_[0] = REVERSI_STONE_WHITE;
+          color_[1] = REVERSI_STONE_BLACK;
+        }
+        initBoard();
+        last_passed_ = false;
+        x_ = -1;
+        y_ = -1;
+        status_ = REVERSI_STATUS_BLACK_TURN;
+      }
+    } else if (status_ == REVERSI_STATUS_AFTER_GAME) {
+      if (color_[0] == getColor_(user)) {
+        color_[0] = REVERSI_STONE_EMPTY;
+      } else if (color_[1] == getColor_(user)) {
+        color_[1] = REVERSI_STONE_EMPTY;
+      }
+      if (color_[0] == REVERSI_STONE_EMPTY || color_[1] == REVERSI_STONE_EMPTY) {
+        status_ = REVERSI_STATUS_BEFORE_GAME;
+        int black = countStone_(REVERSI_STONE_BLACK);
+        int white = countStone_(REVERSI_STONE_WHITE);
+        if (black > white) {
+          if (getColor_(*user_[0]) == REVERSI_STONE_BLACK) {
+            ++firstWin_;
+          } else {
+            ++secondWin_;
+          }
+        }
+        if (white > black) {
+          if (getColor_(*user_[0]) == REVERSI_STONE_WHITE) {
+            ++firstWin_;
+          } else {
+            ++secondWin_;
+          }
+        }
+        LOG_INFO(user_[0]->getName(), " = ", firstWin_, " ", user_[1]->getName(), " = ", secondWin_);
+      }
+    }
+    return status;
   }
 
   std::array<ReversiStone, 64> getBoard () const {
@@ -138,6 +188,9 @@ struct Reversi : public Game {
   int putStone (User & user, int x, int y) {
     std::lock_guard<std::mutex> lock(mtx_);
     ReversiStone color = getColor_(user);
+    if (status_ == REVERSI_STATUS_BEFORE_GAME || status_ == REVERSI_STATUS_AFTER_GAME) {
+      return -2;
+    }
     if (color == REVERSI_STONE_EMPTY) {
       return -5;
     } else if (color == REVERSI_STONE_BLACK && status_ != REVERSI_STATUS_BLACK_TURN) {
@@ -146,7 +199,7 @@ struct Reversi : public Game {
       return -2;
     }
 
-    if (!checkPutStone(color, x, y, false)) {
+    if (!checkPutStone(color, x, y, true)) {
       LOG_ERROR("invalid put");
       return -3;
     }
@@ -158,62 +211,20 @@ struct Reversi : public Game {
     return 0;
   }
 
-  bool finishTurn (User & user) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    return finishTurn_(user);
-  }
-  bool finishTurn_ (User & user) {
-    ReversiStatus status = getStatus_();
-    ReversiStone color = getColor_(user);
-    if (color == REVERSI_STONE_EMPTY) {
-      return false;
-    } else if (color == REVERSI_STONE_BLACK && status != REVERSI_STATUS_BLACK_TURN) {
-      return false;
-    } else if (color == REVERSI_STONE_WHITE && status != REVERSI_STATUS_WHITE_TURN) {
-      return false;
-    }
-    if (checkPass_(user)) {
-      checkPutStone(color, x_, y_, true);
-      last_passed_ = false;
-    } else {
-      last_passed_ = true;
-    }
-
-    x_ = -1;
-    y_ = -1;
-
-    if (status_ == REVERSI_STATUS_BLACK_TURN) {
-      status_ = REVERSI_STATUS_WHITE_TURN;
-    } else if (status_ == REVERSI_STATUS_WHITE_TURN) {
-      status_ = REVERSI_STATUS_BLACK_TURN;
-    }
-  }
-
   std::pair<int, int> getLastStone () const noexcept {
     std::lock_guard<std::mutex> lock(mtx_);
     return std::pair<int, int>(x_, y_);
   }
 
-  bool checkPass (User & user) {
-    std::lock_guard<std::mutex> lock(mtx_);
-    return checkPass_(user);
+  int countStone_ (ReversiStone color) const noexcept {
+    int ret = 0;
+    for (ReversiStone c : board_) {
+      if (c == color) {
+        ++ret;
+      }
+    }
+    return ret;
   }
-
-  bool checkPass_ (User & user) {
-    ReversiStatus status = getStatus_();
-    ReversiStone color = getColor_(user);
-    if (color == REVERSI_STONE_EMPTY) {
-      return false;
-    }
-    if (color == REVERSI_STONE_BLACK && status != REVERSI_STATUS_BLACK_TURN) {
-      return false;
-    }
-    if (color == REVERSI_STONE_WHITE && status != REVERSI_STATUS_WHITE_TURN) {
-      return false;
-    }
-    return !checkPossibleChoice(color);
-  }
-
 
 private:
 
@@ -228,6 +239,9 @@ private:
 
   int x_;
   int y_;
+
+  int firstWin_;
+  int secondWin_;
 
   void initBoard () {
     for (ReversiStone & stone : board_) {

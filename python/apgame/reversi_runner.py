@@ -16,7 +16,7 @@ import sys
 import time
 
 def spin (reversi_client, commands, prog):
-    print(commands)
+#     print(commands)
     if commands[0] == 'GET_STATUS':
         status = reversi_client.getStatus()
         if status == 0:
@@ -45,16 +45,18 @@ def spin (reversi_client, commands, prog):
     elif commands[0] == 'GET_BOARD':
         board = reversi_client.getBoard()
         for stone in board:
-            if stone == '0':
+            if stone == 0:
                 ch = '.'
-            elif stone == '1':
+            elif stone == 1:
                 ch = 'B'
-            elif stone == '-1':
+            elif stone == -1:
                 ch = 'W'
             prog.stdin.write(ch)
         prog.stdin.write('\n')
         return
     elif commands[0] == 'PUT_STONE':
+        x = int(commands[1])
+        y = int(commands[2])
         status = reversi_client.putStone(x, y)
         if status == 0:
             prog.stdin.write('TRUE\n')
@@ -90,5 +92,5 @@ if __name__ == '__main__':
         if len(request) == 0:
             time.sleep(0.1)
             continue
-        commands = request[:-1].split(' ')
+        commands = request[:-1].split()
         spin(reversi_client, commands, proc)

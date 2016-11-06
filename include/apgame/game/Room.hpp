@@ -13,7 +13,7 @@ struct Room {
   Room (std::unique_ptr<Game> game)
   : game_(std::move(game)) {
     max_user_ = 32;
-    num_round_ = 1024;
+    num_round_ = 1;
   }
 
   Game * getGame () {

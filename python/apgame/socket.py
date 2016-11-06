@@ -34,23 +34,23 @@ class Socket(object):
    
     def receiveBool(self):
         self._receive(1)
-        return struct.unpack('?', self._consume(1))
+        return struct.unpack('?', self._consume(1))[0]
     
     def receiveInt8(self):
         self._receive(1)
-        return struct.unpack('<b', self._consume(1))
+        return struct.unpack('<b', self._consume(1))[0]
     
     def receiveInt32(self):
         self._receive(4)
-        return struct.unpack('<i', self._consume(4))
+        return struct.unpack('<i', self._consume(4))[0]
     
     def receiveUInt64(self):
         self._receive(8)
-        return struct.unpack('<Q', self._consume(8))
+        return struct.unpack('<Q', self._consume(8))[0]
     
     def receiveString(self):
         size = self.receiveUInt64()
-        return self.unpack('{}s'.format(size), self._consume(size))
+        return self.unpack('{}s'.format(size), self._consume(size))[0]
     
     def _consume(self, length):
         data = self._buffer[:length]
@@ -58,7 +58,7 @@ class Socket(object):
         return data
     
     def _send(self, data):
-        print('send {} bytes'.format(len(data)))
+#         print('send {} bytes'.format(len(data)))
         total = 0
         while total < len(data):
             size = self._socket.send(data[total:])
@@ -67,7 +67,7 @@ class Socket(object):
             total += size
     
     def _receive(self, recv_size):
-        print('receive{} bytes'.format(recv_size))
+#         print('receive{} bytes'.format(recv_size))
         while len(self._buffer) < recv_size:
             segment = self._socket.recv(4096)
             if len(segment) == 0:
